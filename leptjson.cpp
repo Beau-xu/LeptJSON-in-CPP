@@ -1,7 +1,8 @@
-// #include <cstdlib>
 #include "leptjson.h"
 
 #include <cassert> /* assert() */
+#include <cmath>
+#include <cstdlib>
 #include <string>
 
 namespace lept {
@@ -24,45 +25,67 @@ static void parse_whitespace(context &c) {
     c.json = p;
 }
 
-static int parse_null(context &c, value &v) {
-    EXPECT(c, 'n');
-    if (c.json[0] != 'u' || c.json[1] != 'l' || c.json[2] != 'l')
-        return PARSE_INVALID_VALUE;
-    c.json += 3;
-    v.type = NONE;
+static int parse_literal(context &c, value &v, const char *literal, e_types type) {
+    EXPECT(c, literal[0]);
+    size_t i;
+    for (i = 0; literal[i + 1]; ++i) {  // literal[i + 1] == '\0'为止
+        if (c.json[i] != literal[i + 1]) return PARSE_INVALID_VALUE;
+    }
+    c.json += i;
+    v.type = type;
     return PARSE_OK;
 }
 
-static int parse_true(context &c, value &v) {
-    EXPECT(c, 't');
-    if (c.json[0] != 'r' || c.json[1] != 'u' || c.json[2] != 'e')
-        return PARSE_INVALID_VALUE;
-    c.json += 3;
-    v.type = TRUE;
-    return PARSE_OK;
-}
+#define ISDIGIT1TO9(c) (c >= '1' && c <= '9')
+#define ISDIGIT(c) (c >= '0' && c <= '9')
 
-static int parse_false(context &c, value &v) {
-    EXPECT(c, 'f');
-    if (c.json[0] != 'a' || c.json[1] != 'l' || c.json[2] != 's' || c.json[3] != 'e')
-        return PARSE_INVALID_VALUE;
-    c.json += 4;
-    v.type = FALSE;
+static int parse_number(context &c, value &v) {
+    const char *p = c.json;
+    if (*p == '-') ++p;
+    if (*p == '0') {
+        ++p;
+    } else {
+        if (!ISDIGIT1TO9(*p)) return PARSE_INVALID_VALUE;
+        while (ISDIGIT(*p)) ++p;
+    }
+    if (*p == '.') {
+        ++p;
+        if (!ISDIGIT(*p)) return PARSE_INVALID_VALUE;
+        while (ISDIGIT(*p)) ++p;
+    }
+    if (*p == 'e' || *p == 'E') {
+        ++p;
+        if (*p == '+' || *p == '-') ++p;
+        if (!ISDIGIT(*p)) return PARSE_INVALID_VALUE;
+        while (ISDIGIT(*p)) ++p;
+    }
+    errno = 0;
+    v.n = strtod(c.json, NULL);
+    if (errno == ERANGE && (v.n == HUGE_VAL || v.n == -HUGE_VAL)) return PARSE_NUMBER_TOO_BIG;
+    v.type = NUMBER;
+    c.json = p;
     return PARSE_OK;
+    // char *end;
+    // v.n = strtod(c.json, &end);
+    // if (c.json == end)  // 没有找到能被合法转换的字符串
+    //     return PARSE_INVALID_VALUE;
+    // c.json = end;
+    // v.type = NUMBER;
+    // return PARSE_OK;
 }
 
 static int parse_value(context &c, value &v) {
     switch (*c.json) {
-        case 'n':
-            return parse_null(c, v);
         case 't':
-            return parse_true(c, v);
+            return parse_literal(c, v, "true", TRUE);
         case 'f':
-            return parse_false(c, v);
+            return parse_literal(c, v, "false", FALSE);
+        case 'n':
+            return parse_literal(c, v, "null", NONE);
+        default:
+            return parse_number(c, v);
         case '\0':
             return PARSE_EXPECT_VALUE;
-        default:
-            return PARSE_INVALID_VALUE;
     }
 }
 
@@ -76,15 +99,22 @@ int parse(value &v, const char *json) {
     ret = parse_value(c, v);
     if (ret == PARSE_OK) {
         parse_whitespace(c);
-        if (*c.json != '\0')  // 字符串结尾
+        if (*c.json != '\0') {  // 字符串结尾
+            v.type = NONE;
             ret = PARSE_ROOT_NOT_SINGULAR;
+        }
     }
     return ret;
 }
 
-e_types lept_get_type(const value &v) {
+e_types get_type(const value &v) {
     // assert(v);
     return v.type;
+}
+
+double get_number(const value &v) {
+    assert(v.type == NUMBER);
+    return v.n;
 }
 
 }  // namespace lept
