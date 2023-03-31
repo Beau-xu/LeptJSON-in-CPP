@@ -1,7 +1,11 @@
 #ifndef LEPTJSON_H
 #define LEPTJSON_H
 
+#include <string>
+
 namespace lept {
+
+using std::string;
 
 typedef enum { NONE, FALSE, TRUE, NUMBER, STRING, ARRAY, OBJECT } e_types;
 
@@ -18,7 +22,7 @@ enum {
     PARSE_NUMBER_TOO_BIG
 };
 
-int parse(value &v, const char *json);
+int parse(value &v, const string &strJson);
 
 e_types get_type(const value &v);
 

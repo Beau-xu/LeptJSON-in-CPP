@@ -3,6 +3,7 @@
 #include <cassert> /* assert() */
 #include <cmath>
 #include <cstdlib>  // errno
+#include <iostream>
 #include <stdexcept>
 #include <string>
 
@@ -10,29 +11,26 @@ namespace lept {
 
 using std::string;
 
-#define EXPECT(c, ch)            \
-    do {                         \
-        assert(*c.json == (ch)); \
-        c.json++;                \
+#define EXPECT(it, itRef)      \
+    do {                       \
+        assert(*it == *itRef); \
     } while (0)
 
 typedef struct {
-    const char *json;
+    string strJson;
+    string::const_iterator json;
 } context;
 
 static void parse_whitespace(context &c) {
-    const char *p = c.json;
-    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
-    c.json = p;
+    while (*c.json == ' ' || *c.json == '\t' || *c.json == '\n' || *c.json == '\r') ++c.json;
 }
 
-static int parse_literal(context &c, value &v, const char *literal, e_types type) {
-    EXPECT(c, literal[0]);
-    size_t i;
-    for (i = 0; literal[i + 1]; ++i) {  // literal[i + 1] == '\0'为止
-        if (c.json[i] != literal[i + 1]) return PARSE_INVALID_VALUE;
+static int parse_literal(context &c, value &v, const string &literal, e_types type) {
+    EXPECT(c.json, literal.cbegin());
+    for (auto itRef = literal.cbegin(); itRef != literal.cend(); ++itRef) {
+        if (*c.json != *itRef) return PARSE_INVALID_VALUE;
+        ++c.json;
     }
-    c.json += i;
     v.type = type;
     return PARSE_OK;
 }
@@ -41,7 +39,7 @@ static int parse_literal(context &c, value &v, const char *literal, e_types type
 #define ISDIGIT(c) (c >= '0' && c <= '9')
 
 static int parse_number(context &c, value &v) {
-    const char *p = c.json;
+    auto p = c.json;
     if (*p == '-') ++p;
     if (*p == '0') {
         ++p;
@@ -61,7 +59,7 @@ static int parse_number(context &c, value &v) {
         while (ISDIGIT(*p)) ++p;
     }
     try {
-        v.n = strtod(c.json, NULL);
+        v.n = std::stod(string(c.json, c.strJson.cend()));
     } catch (std::out_of_range &e) {
         return PARSE_NUMBER_TOO_BIG;
     }
@@ -71,6 +69,7 @@ static int parse_number(context &c, value &v) {
 }
 
 static int parse_value(context &c, value &v) {
+    if (c.json == c.strJson.cend()) return PARSE_EXPECT_VALUE;
     switch (*c.json) {
         case 't':
             return parse_literal(c, v, "true", TRUE);
@@ -80,22 +79,21 @@ static int parse_value(context &c, value &v) {
             return parse_literal(c, v, "null", NONE);
         default:
             return parse_number(c, v);
-        case '\0':
-            return PARSE_EXPECT_VALUE;
     }
 }
 
-int parse(value &v, const char *json) {
+int parse(value &v, const string &strJson) {
     context c;
     int ret;
     // assert(v);
-    c.json = json;
+    c.strJson = strJson;
+    c.json = c.strJson.cbegin();
     v.type = NONE;  // 若解析失败则类型为NONE
     parse_whitespace(c);
     ret = parse_value(c, v);
     if (ret == PARSE_OK) {
         parse_whitespace(c);
-        if (*c.json != '\0') {  // 字符串结尾
+        if (c.json != c.strJson.cend()) {  // 字符串结尾
             v.type = NONE;
             ret = PARSE_ROOT_NOT_SINGULAR;
         }
