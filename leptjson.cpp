@@ -2,7 +2,8 @@
 
 #include <cassert> /* assert() */
 #include <cmath>
-#include <cstdlib>
+#include <cstdlib>  // errno
+#include <stdexcept>
 #include <string>
 
 namespace lept {
@@ -59,19 +60,14 @@ static int parse_number(context &c, value &v) {
         if (!ISDIGIT(*p)) return PARSE_INVALID_VALUE;
         while (ISDIGIT(*p)) ++p;
     }
-    errno = 0;
-    v.n = strtod(c.json, NULL);
-    if (errno == ERANGE && (v.n == HUGE_VAL || v.n == -HUGE_VAL)) return PARSE_NUMBER_TOO_BIG;
-    v.type = NUMBER;
+    try {
+        v.n = strtod(c.json, NULL);
+    } catch (std::out_of_range &e) {
+        return PARSE_NUMBER_TOO_BIG;
+    }
     c.json = p;
+    v.type = NUMBER;
     return PARSE_OK;
-    // char *end;
-    // v.n = strtod(c.json, &end);
-    // if (c.json == end)  // 没有找到能被合法转换的字符串
-    //     return PARSE_INVALID_VALUE;
-    // c.json = end;
-    // v.type = NUMBER;
-    // return PARSE_OK;
 }
 
 static int parse_value(context &c, value &v) {
