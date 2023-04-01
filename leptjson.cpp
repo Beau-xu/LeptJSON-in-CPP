@@ -11,9 +11,9 @@ namespace lept {
 
 using std::string;
 
-#define EXPECT(c, ch)   \
-    do {                \
-        assert(c == c); \
+#define EXPECT(c, char)    \
+    do {                   \
+        assert(c == char); \
     } while (0)
 
 #define ISDIGIT1TO9(c) (c >= '1' && c <= '9')
@@ -68,7 +68,7 @@ static int parse_number(context &c, value &v) {
     return PARSE_OK;
 }
 
-static int parse_hex4(string::const_iterator &end, unsigned &u) {
+static bool parse_hex4(string::const_iterator &end, unsigned &u) {
     int i;
     u = 0;
     for (i = 0; i < 4; i++) {
@@ -81,8 +81,9 @@ static int parse_hex4(string::const_iterator &end, unsigned &u) {
         else if (ch >= 'a' && ch <= 'f')
             u |= ch - ('a' - 10);
         else
-            return NULL;
+            return false;
     }
+    return true;
 }
 
 static void encode_utf8(string &s, unsigned u) {
@@ -168,6 +169,44 @@ static int parse_string(context &c, value &v) {
     return PARSE_MISS_QUOTATION_MARK;
 }
 
+static int parse_value(context &c, value &v);
+
+static int parse_array(context &c, value &v) {
+    size_t size = 0;
+    int ret;
+    EXPECT(*(c.json)++, '[');
+    parse_whitespace(c);
+    if (*c.json == ']') {
+        c.json++;
+        v.type = ARRAY;
+        v.e = nullptr;
+        return PARSE_OK;
+    }
+    vector<value> vecVal;
+    value val;
+    while (true) {
+        init(val);
+        if ((ret = parse_value(c, val)) != PARSE_OK) break;
+        vecVal.push_back(val);
+        parse_whitespace(c);
+        if (*c.json == ',') {
+            c.json++;
+            parse_whitespace(c);
+        } else if (*c.json == ']') {
+            c.json++;
+            v.type = ARRAY;
+            v.e = new vector<value>(vecVal);
+            return PARSE_OK;        // 直接返回且不释放 vecVal
+            break;
+        } else {
+            ret = PARSE_MISS_COMMA_OR_SQUARE_BRACKET;
+            break;
+        }
+    }
+    for (auto val : vecVal) freeVal(val);
+    return ret;
+}
+
 static int parse_value(context &c, value &v) {
     if (c.json == c.strJson.cend()) return PARSE_EXPECT_VALUE;
     switch (*c.json) {
@@ -179,6 +218,8 @@ static int parse_value(context &c, value &v) {
             return parse_literal(c, v, "null", NONE);
         case '"':
             return parse_string(c, v);
+        case '[':
+            return parse_array(c, v);
         default:
             return parse_number(c, v);
     }
@@ -204,9 +245,22 @@ int parse(value &v, const string &strJson) {
 }
 
 void freeVal(value &v) {
-    if (v.type == STRING) {
-        delete v.s;
-        v.s = nullptr;
+    switch (v.type) {
+        case STRING:
+            if (v.s != nullptr) {
+                delete v.s;
+                v.s = nullptr;
+            }
+            break;
+        case ARRAY:
+            if (v.e != nullptr) {
+                for (auto val : *v.e) freeVal(val);
+                delete v.e;
+                v.e = nullptr;
+            }
+            break;
+        default:
+            break;
     }
     v.type = NONE;
 }
@@ -248,6 +302,18 @@ void set_string(value &v, const string &s) {
     freeVal(v);
     v.s = new string(s);
     v.type = STRING;
+}
+
+size_t get_array_size(const value &v) {
+    assert(v.type == ARRAY);
+    if (v.e == nullptr) return 0;
+    return (*v.e).size();
+}
+
+value &get_array_element(const value &v, size_t index) {
+    assert(v.type == ARRAY);
+    assert(index < (*v.e).size());
+    return (*v.e)[index];
 }
 
 }  // namespace lept
