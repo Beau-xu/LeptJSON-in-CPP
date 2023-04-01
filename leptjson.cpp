@@ -68,6 +68,42 @@ static int parse_number(context &c, value &v) {
     return PARSE_OK;
 }
 
+static int parse_hex4(string::const_iterator &end, unsigned &u) {
+    int i;
+    u = 0;
+    for (i = 0; i < 4; i++) {
+        char ch = *end++;
+        u <<= 4;  // *= 16;
+        if (ch >= '0' && ch <= '9')
+            u |= ch - '0';
+        else if (ch >= 'A' && ch <= 'F')
+            u |= ch - ('A' - 10);
+        else if (ch >= 'a' && ch <= 'f')
+            u |= ch - ('a' - 10);
+        else
+            return NULL;
+    }
+}
+
+static void encode_utf8(string &s, unsigned u) {
+    if (u <= 0x7F)
+        s += u & 0xFF;
+    else if (u <= 0x7FF) {
+        s += 0xC0 | ((u >> 6) & 0xFF);
+        s += 0x80 | (u & 0x3F);
+    } else if (u <= 0xFFFF) {
+        s += 0xE0 | ((u >> 12) & 0xFF);
+        s += 0x80 | ((u >> 6) & 0x3F);
+        s += 0x80 | (u & 0x3F);
+    } else {
+        assert(u <= 0x10FFFF);
+        s += 0xF0 | ((u >> 18) & 0xFF);
+        s += 0x80 | ((u >> 12) & 0x3F);
+        s += 0x80 | ((u >> 6) & 0x3F);
+        s += 0x80 | (u & 0x3F);
+    }
+}
+
 static int parse_string(context &c, value &v) {
     EXPECT(*c.json, '\"');
     auto end = ++(c.json);
@@ -75,6 +111,7 @@ static int parse_string(context &c, value &v) {
     string s = "";
     while (end != c.strJson.cend()) {
         ch = *end++;
+        unsigned u, u2;
         switch (ch) {
             case '\"':
                 c.json = end;
@@ -105,6 +142,17 @@ static int parse_string(context &c, value &v) {
                         break;
                     case 't':
                         s += '\t';
+                        break;
+                    case 'u':
+                        if (!(parse_hex4(end, u))) return PARSE_INVALID_UNICODE_HEX;
+                        if (u >= 0xD800 && u <= 0xDBFF) { /* surrogate pair */
+                            if (*end++ != '\\') return PARSE_INVALID_UNICODE_SURROGATE;
+                            if (*end++ != 'u') return PARSE_INVALID_UNICODE_SURROGATE;
+                            if (!(parse_hex4(end, u2))) return PARSE_INVALID_UNICODE_HEX;
+                            if (u2 < 0xDC00 || u2 > 0xDFFF) return PARSE_INVALID_UNICODE_SURROGATE;
+                            u = (((u - 0xD800) << 10) | (u2 - 0xDC00)) + 0x10000;
+                        }
+                        encode_utf8(s, u);
                         break;
                     default:
                         return PARSE_INVALID_STRING_ESCAPE;
