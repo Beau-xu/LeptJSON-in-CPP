@@ -1,6 +1,8 @@
 #include <cassert> /* assert() */
 // #include <cmath>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -119,30 +121,14 @@ static int parse_string_raw(context& c, string& s) {
                 return PARSE_OK;
             case '\\':
                 switch (*end++) {
-                    case '\"':
-                        s += '\"';
-                        break;
-                    case '\\':
-                        s += '\\';
-                        break;
-                    case '/':
-                        s += '/';
-                        break;
-                    case 'b':
-                        s += '\b';
-                        break;
-                    case 'f':
-                        s += '\f';
-                        break;
-                    case 'n':
-                        s += '\n';
-                        break;
-                    case 'r':
-                        s += '\r';
-                        break;
-                    case 't':
-                        s += '\t';
-                        break;
+                    case '\"': s += '\"'; break;
+                    case '\\': s += '\\'; break;
+                    case '/': s += '/'; break;
+                    case 'b': s += '\b'; break;
+                    case 'f': s += '\f'; break;
+                    case 'n': s += '\n'; break;
+                    case 'r': s += '\r'; break;
+                    case 't': s += '\t'; break;
                     case 'u':
                         if (!(parse_hex4(end, u))) return PARSE_INVALID_UNICODE_HEX;
                         if (u >= 0xD800 && u <= 0xDBFF) { /* surrogate pair */
@@ -154,8 +140,7 @@ static int parse_string_raw(context& c, string& s) {
                         }
                         encode_utf8(s, u);
                         break;
-                    default:
-                        return PARSE_INVALID_STRING_ESCAPE;
+                    default: return PARSE_INVALID_STRING_ESCAPE;
                 }
                 break;
             default:
@@ -262,20 +247,13 @@ static int parse_object(context& c, value& v) {
 static int parse_value(context& c, value& v) {
     if (c.json == c.strJson.cend()) return PARSE_EXPECT_VALUE;
     switch (*c.json) {
-        case 't':
-            return parse_literal(c, v, "true", TRUE);
-        case 'f':
-            return parse_literal(c, v, "false", FALSE);
-        case 'n':
-            return parse_literal(c, v, "null", NONE);
-        case '"':
-            return parse_string(c, v);
-        case '[':
-            return parse_array(c, v);
-        case '{':
-            return parse_object(c, v);
-        default:
-            return parse_number(c, v);
+        case 't': return parse_literal(c, v, "true", TRUE);
+        case 'f': return parse_literal(c, v, "false", FALSE);
+        case 'n': return parse_literal(c, v, "null", NONE);
+        case '"': return parse_string(c, v);
+        case '[': return parse_array(c, v);
+        case '{': return parse_object(c, v);
+        default: return parse_number(c, v);
     }
 }
 
@@ -296,6 +274,101 @@ int parse(value& v, const string& strJson) {
         }
     }
     return ret;
+}
+
+static void stringify_string(const string& sOfVal, string& s) {
+    static const char hex_digits[] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                      '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+    s += '"';
+    for (auto it = sOfVal.cbegin(); it != sOfVal.cend(); it++) {
+        switch (*it) {
+            case '\"':
+                s += '\\';
+                s += '\"';
+                break;
+            case '\\':
+                s += '\\';
+                s += '\\';
+                break;
+            case '\b':
+                s += '\\';
+                s += 'b';
+                break;
+            case '\f':
+                s += '\\';
+                s += 'f';
+                break;
+            case '\n':
+                s += '\\';
+                s += 'n';
+                break;
+            case '\r':
+                s += '\\';
+                s += 'r';
+                break;
+            case '\t':
+                s += '\\';
+                s += 't';
+                break;
+            default:
+                if (*it < 0x20) {
+                    s += '\\';
+                    s += 'u';
+                    s += '0';
+                    s += '0';
+                    s += hex_digits[*it >> 4];
+                    s += hex_digits[*it & 15];
+                } else
+                    s += *it;
+        }
+    }
+    s += '"';
+}
+
+static void stringify_value(const value& v, string& s) {
+    std::stringstream ss;
+    switch (v.type) {
+        case NONE: s += "null"; break;
+        case FALSE: s += "false"; break;
+        case TRUE: s += "true"; break;
+        case NUMBER:
+            ss << std::setprecision(17) << v.n;
+            s += ss.str();
+            break;
+        case STRING: stringify_string(*v.s, s); break;
+        case ARRAY:
+            s += '[';
+            if (v.e) {
+                for (const value& val : *v.e) {
+                    stringify_value(val, s);
+                    s += ',';
+                }
+                s.pop_back();
+            }
+            s += ']';
+            break;
+        case OBJECT:
+            s += '{';
+            if (v.m) {
+                for (const member& mem : *v.m) {
+                    stringify_string(mem.k, s);
+                    s += ':';
+                    stringify_value(mem.v, s);
+                    s += ',';
+                }
+                s.pop_back();
+            }
+            s += '}';
+            break;
+        default: throw "Invalid value type";
+    }
+}
+
+string stringify(const value& v, size_t* length = nullptr) {
+    string s("");
+    stringify_value(v, s);
+    if (length != nullptr) *length = s.size();
+    return s;
 }
 
 void freeVal(value& v) {
@@ -321,8 +394,7 @@ void freeVal(value& v) {
                 v.m = nullptr;
             }
             break;
-        default:
-            break;
+        default: break;
     }
     v.type = NONE;
 }

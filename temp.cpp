@@ -11,9 +11,9 @@ struct value {
 };
 
 int main() {
-    string s = string("");
-    string* ps = &s;
-    cout << (*ps).size() << endl;
+    string s = string("hello");
+    s.pop_back();
+    cout << s << endl;
 
 
     return 0;

@@ -53,6 +53,8 @@ enum {
 
 int parse(value& v, const string& strJson);
 
+string stringify(const value& v, size_t* length);
+
 void freeVal(value& v);
 
 e_types get_type(const value& v);

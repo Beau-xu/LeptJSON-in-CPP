@@ -28,15 +28,19 @@ static int test_pass = 0;
 
 #define EXPECT_EQ_INT(expect, actual) EXPECT_EQ_BASE((expect) == (actual), expect, actual, 0)
 #define EXPECT_EQ_DOUBLE(expect, actual) EXPECT_EQ_BASE((expect) == (actual), expect, actual, 17)
-#define EXPECT_EQ_STRING(expect, actual, alength) \
-    EXPECT_EQ_BASE(sizeof(expect) - 1 == (alength) && string(expect, sizeof(expect)-1) == actual, expect, actual, 0)
+#define EXPECT_EQ_STRING(expect, actual, alength)                                                \
+    EXPECT_EQ_BASE(                                                                              \
+        sizeof(expect) - 1 == (alength) && string(expect, sizeof(expect) - 1) == actual, expect, \
+        actual, 0)
 #define EXPECT_TRUE(actual) EXPECT_EQ_BASE((actual) != 0, "true", "false", 0)
 #define EXPECT_FALSE(actual) EXPECT_EQ_BASE((actual) == 0, "false", "true", 0)
 
 #if defined(_MSC_VER)
-#define EXPECT_EQ_SIZE_T(expect, actual) EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, "%Iu")
+#define EXPECT_EQ_SIZE_T(expect, actual) \
+    EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, "%Iu")
 #else
-#define EXPECT_EQ_SIZE_T(expect, actual) EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, 0)
+#define EXPECT_EQ_SIZE_T(expect, actual) \
+    EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, 0)
 #endif
 
 static void test_parse_null() {
@@ -140,13 +144,14 @@ static void test_parse_array() {
     EXPECT_EQ_INT(PARSE_OK, parse(v, "[ null , false , true , 123 , \"abc\" ]"));
     EXPECT_EQ_INT(ARRAY, get_type(v));
     EXPECT_EQ_SIZE_T(5, get_array_size(v));
-    EXPECT_EQ_INT(NONE,   get_type(get_array_element(v, 0)));
-    EXPECT_EQ_INT(FALSE,  get_type(get_array_element(v, 1)));
-    EXPECT_EQ_INT(TRUE,   get_type(get_array_element(v, 2)));
+    EXPECT_EQ_INT(NONE, get_type(get_array_element(v, 0)));
+    EXPECT_EQ_INT(FALSE, get_type(get_array_element(v, 1)));
+    EXPECT_EQ_INT(TRUE, get_type(get_array_element(v, 2)));
     EXPECT_EQ_INT(NUMBER, get_type(get_array_element(v, 3)));
     EXPECT_EQ_INT(STRING, get_type(get_array_element(v, 4)));
     EXPECT_EQ_DOUBLE(123.0, get_number(get_array_element(v, 3)));
-    EXPECT_EQ_STRING("abc", get_string(get_array_element(v, 4)), get_string_length(get_array_element(v, 4)));
+    EXPECT_EQ_STRING("abc", get_string(get_array_element(v, 4)),
+                     get_string_length(get_array_element(v, 4)));
     freeVal(v);
 
     init(v);
@@ -154,11 +159,11 @@ static void test_parse_array() {
     EXPECT_EQ_INT(ARRAY, get_type(v));
     EXPECT_EQ_SIZE_T(4, get_array_size(v));
     for (i = 0; i < 4; i++) {
-        value &a = get_array_element(v, i);
+        value& a = get_array_element(v, i);
         EXPECT_EQ_INT(ARRAY, get_type(a));
         EXPECT_EQ_SIZE_T(i, get_array_size(a));
         for (j = 0; j < i; j++) {
-            value &e = get_array_element(a, j);
+            value& e = get_array_element(a, j);
             EXPECT_EQ_INT(NUMBER, get_type(e));
             EXPECT_EQ_DOUBLE((double)j, get_number(e));
         }
@@ -178,30 +183,30 @@ static void test_parse_object() {
 
     init(v);
     EXPECT_EQ_INT(PARSE_OK, parse(v,
-        " { "
-        "\"n\" : null , "
-        "\"f\" : false , "
-        "\"t\" : true , "
-        "\"i\" : 123 , "
-        "\"s\" : \"abc\", "
-        "\"a\" : [ 1, 2, 3 ],"
-        "\"o\" : { \"1\" : 1, \"2\" : 2, \"3\" : 3 }"
-        " } "
-    ));
+                                  " { "
+                                  "\"n\" : null , "
+                                  "\"f\" : false , "
+                                  "\"t\" : true , "
+                                  "\"i\" : 123 , "
+                                  "\"s\" : \"abc\", "
+                                  "\"a\" : [ 1, 2, 3 ],"
+                                  "\"o\" : { \"1\" : 1, \"2\" : 2, \"3\" : 3 }"
+                                  " } "));
     EXPECT_EQ_INT(OBJECT, get_type(v));
     EXPECT_EQ_SIZE_T(7, get_object_size(v));
     EXPECT_EQ_STRING("n", get_object_key(v, 0), get_object_key_length(v, 0));
-    EXPECT_EQ_INT(NONE,   get_type(get_object_value(v, 0)));
+    EXPECT_EQ_INT(NONE, get_type(get_object_value(v, 0)));
     EXPECT_EQ_STRING("f", get_object_key(v, 1), get_object_key_length(v, 1));
-    EXPECT_EQ_INT(FALSE,  get_type(get_object_value(v, 1)));
+    EXPECT_EQ_INT(FALSE, get_type(get_object_value(v, 1)));
     EXPECT_EQ_STRING("t", get_object_key(v, 2), get_object_key_length(v, 2));
-    EXPECT_EQ_INT(TRUE,   get_type(get_object_value(v, 2)));
+    EXPECT_EQ_INT(TRUE, get_type(get_object_value(v, 2)));
     EXPECT_EQ_STRING("i", get_object_key(v, 3), get_object_key_length(v, 3));
     EXPECT_EQ_INT(NUMBER, get_type(get_object_value(v, 3)));
     EXPECT_EQ_DOUBLE(123.0, get_number(get_object_value(v, 3)));
     EXPECT_EQ_STRING("s", get_object_key(v, 4), get_object_key_length(v, 4));
     EXPECT_EQ_INT(STRING, get_type(get_object_value(v, 4)));
-    EXPECT_EQ_STRING("abc", get_string(get_object_value(v, 4)), get_string_length(get_object_value(v, 4)));
+    EXPECT_EQ_STRING("abc", get_string(get_object_value(v, 4)),
+                     get_string_length(get_object_value(v, 4)));
     EXPECT_EQ_STRING("a", get_object_key(v, 5), get_object_key_length(v, 5));
     EXPECT_EQ_INT(ARRAY, get_type(get_object_value(v, 5)));
     EXPECT_EQ_SIZE_T(3, get_array_size(get_object_value(v, 5)));
@@ -365,6 +370,67 @@ static void test_parse() {
     test_parse_miss_comma_or_curly_bracket();
 }
 
+#define TEST_ROUNDTRIP(json)                     \
+    do {                                         \
+        value v;                                 \
+        string jsonOut;                          \
+        size_t length;                           \
+        init(v);                                 \
+        EXPECT_EQ_INT(PARSE_OK, parse(v, json)); \
+        jsonOut = stringify(v, &length);         \
+        EXPECT_EQ_STRING(json, jsonOut, length); \
+        freeVal(v);                              \
+    } while (0)
+
+static void test_stringify_number() {
+    TEST_ROUNDTRIP("0");
+    TEST_ROUNDTRIP("-0");
+    TEST_ROUNDTRIP("1");
+    TEST_ROUNDTRIP("-1");
+    TEST_ROUNDTRIP("1.5");
+    TEST_ROUNDTRIP("-1.5");
+    TEST_ROUNDTRIP("3.25");
+    TEST_ROUNDTRIP("1e+20");
+    TEST_ROUNDTRIP("1.234e+20");
+    TEST_ROUNDTRIP("1.234e-20");
+
+    TEST_ROUNDTRIP("1.0000000000000002");      /* the smallest number > 1 */
+    TEST_ROUNDTRIP("2.2250738585072014e-308"); /* Min normal positive double */
+    TEST_ROUNDTRIP("-2.2250738585072014e-308");
+    TEST_ROUNDTRIP("1.7976931348623157e+308"); /* Max double */
+    TEST_ROUNDTRIP("-1.7976931348623157e+308");
+}
+
+static void test_stringify_string() {
+    TEST_ROUNDTRIP("\"\"");
+    TEST_ROUNDTRIP("\"Hello\"");
+    TEST_ROUNDTRIP("\"Hello\\nWorld\"");
+    TEST_ROUNDTRIP("\"\\\" \\\\ / \\b \\f \\n \\r \\t\"");
+    TEST_ROUNDTRIP("\"Hello\\u0000World\"");
+}
+
+static void test_stringify_array() {
+    TEST_ROUNDTRIP("[]");
+    TEST_ROUNDTRIP("[null,false,true,123,\"abc\",[1,2,3]]");
+}
+
+static void test_stringify_object() {
+    TEST_ROUNDTRIP("{}");
+    TEST_ROUNDTRIP(
+        "{\"n\":null,\"f\":false,\"t\":true,\"i\":123,\"s\":\"abc\",\"a\":[1,2,3],\"o\":{\"1\":1,"
+        "\"2\":2,\"3\":3}}");
+}
+
+static void test_stringify() {
+    TEST_ROUNDTRIP("null");
+    TEST_ROUNDTRIP("false");
+    TEST_ROUNDTRIP("true");
+    test_stringify_number();
+    test_stringify_string();
+    test_stringify_array();
+    test_stringify_object();
+}
+
 static void test_access_null() {
     value v;
     init(v);
@@ -415,6 +481,8 @@ static void test_access() {
 
 int main() {
     lept::test_parse();
+    lept::test_stringify();
+    lept::test_access();
     std::cout << lept::test_pass << '/' << lept::test_count << " (" << std::setprecision(5)
               << lept::test_pass * 100.0 / lept::test_count << "%) passed\n";
     return lept::main_ret;
