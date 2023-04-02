@@ -11,8 +11,9 @@ struct value {
 };
 
 int main() {
-    string* s = nullptr;
-    delete s;
+    string s = string("");
+    string* ps = &s;
+    cout << (*ps).size() << endl;
 
 
     return 0;

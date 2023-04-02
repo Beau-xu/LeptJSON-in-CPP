@@ -115,7 +115,7 @@ static int parse_string_raw(context& c, string& s) {
         unsigned u, u2;
         switch (ch) {
             case '\"':
-                c.json = end;
+                c.json = end;  // 收引号的下一位
                 return PARSE_OK;
             case '\\':
                 switch (*end++) {
@@ -178,8 +178,6 @@ static int parse_string(context& c, value& v) {
 static int parse_value(context& c, value& v);
 
 static int parse_array(context& c, value& v) {
-    size_t size = 0;
-    int ret;
     EXPECT(*(c.json)++, '[');
     parse_whitespace(c);
     if (*c.json == ']') {
@@ -188,9 +186,10 @@ static int parse_array(context& c, value& v) {
         v.e = nullptr;
         return PARSE_OK;
     }
+    int ret;
     vector<value> vecVal;
-    value val;
     while (true) {
+        value val;
         init(val);
         if ((ret = parse_value(c, val)) != PARSE_OK) break;
         vecVal.push_back(val);
@@ -213,34 +212,52 @@ static int parse_array(context& c, value& v) {
     return ret;
 }
 
-// static int parse_object(context& c, value& v) {
-//     size_t size;
-//     member m;
-//     int ret;
-//     EXPECT(*(c.json++), '{');
-//     parse_whitespace(c);
-//     if (*c.json == '}') {
-//         c.json++;
-//         v.type = OBJECT;
-//         v.m = nullptr;
-//         return PARSE_OK;
-//     }
-//     m.k = NULL;
-//     size = 0;
-//     for (;;) {
-//         init(&m.v);
-//         /* \todo parse key to m.k, m.klen */
-//         /* \todo parse ws colon ws */
-//         /* parse value */
-//         if ((ret = parse_value(c, m.v)) != PARSE_OK) break;
-//         memcpy(context_push(c, sizeof(member)), &m, sizeof(member));
-//         size++;
-//         m.k = NULL; /* ownership is transferred to member on stack */
-//         /* \todo parse ws [comma | right-curly-brace] ws */
-//     }
-//     /* \todo Pop and free members on the stack */
-//     return ret;
-// }
+static int parse_object(context& c, value& v) {
+    EXPECT(*(c.json++), '{');
+    parse_whitespace(c);
+    if (*c.json == '}') {
+        c.json++;
+        v.type = OBJECT;
+        v.m = nullptr;
+        return PARSE_OK;
+    }
+    int ret;
+    vector<member> vecMem;
+    while (true) {
+        member mem;
+        mem.k = string("");
+        init(mem.v);
+        if (*c.json != '\"') {
+            ret = PARSE_MISS_KEY;
+            break;
+        }
+        if ((ret = parse_string_raw(c, mem.k) != PARSE_OK)) break;
+        parse_whitespace(c);
+        if (*(c.json++) != ':') {
+            ret = PARSE_MISS_COLON;
+            break;
+        }
+        parse_whitespace(c);
+        if ((ret = parse_value(c, mem.v)) != PARSE_OK) break;
+        vecMem.push_back(mem);
+        // mem.k = string(""); /* ownership is transferred to member on stack */
+        parse_whitespace(c);
+        if (*c.json == ',') {
+            c.json++;
+            parse_whitespace(c);
+        } else if (*c.json == '}') {
+            c.json++;
+            v.type = OBJECT;
+            v.m = new vector<member>(vecMem);
+            return PARSE_OK;
+        } else {
+            ret = PARSE_MISS_COMMA_OR_CURLY_BRACKET;
+            break;
+        }
+    }
+    for (auto mem : vecMem) freeVal(mem.v);
+    return ret;
+}
 
 static int parse_value(context& c, value& v) {
     if (c.json == c.strJson.cend()) return PARSE_EXPECT_VALUE;
@@ -255,6 +272,8 @@ static int parse_value(context& c, value& v) {
             return parse_string(c, v);
         case '[':
             return parse_array(c, v);
+        case '{':
+            return parse_object(c, v);
         default:
             return parse_number(c, v);
     }
@@ -294,6 +313,14 @@ void freeVal(value& v) {
                 v.e = nullptr;
             }
             break;
+        case OBJECT:
+            if (v.m != nullptr) {
+                for (auto mem : *v.m) {
+                    freeVal(mem.v);
+                }
+                v.m = nullptr;
+            }
+            break;
         default:
             break;
     }
@@ -330,7 +357,7 @@ string& get_string(const value& v) {
 
 size_t get_string_length(const value& v) {
     assert(v.type == STRING);
-    return (*v.s).size();
+    return v.s->size();
 }
 
 void set_string(value& v, const string& s) {
@@ -342,35 +369,36 @@ void set_string(value& v, const string& s) {
 size_t get_array_size(const value& v) {
     assert(v.type == ARRAY);
     if (v.e == nullptr) return 0;
-    return (*v.e).size();
+    return v.e->size();
 }
 
 value& get_array_element(const value& v, size_t index) {
     assert(v.type == ARRAY);
-    assert(index < (*v.e).size());
+    assert(index < get_array_size(v));
     return (*v.e)[index];
 }
 
 size_t get_object_size(const value& v) {
     assert(v.type == OBJECT);
-    return (*v.m).size();
+    if (v.m == nullptr) return 0;
+    return v.m->size();
 }
 
 const string& get_object_key(const value& v, size_t index) {
     assert(v.type == OBJECT);
-    assert(index < (*v.m).size());
+    assert(index < get_object_size(v));
     return (*v.m)[index].k;
 }
 
 size_t get_object_key_length(const value& v, size_t index) {
     assert(v.type == OBJECT);
-    assert(index < (*v.m).size());
+    assert(index < get_object_size(v));
     return (*v.m)[index].k.size();
 }
 
 value& get_object_value(const value& v, size_t index) {
     assert(v.type == OBJECT);
-    assert(index < (*v.m).size());
+    assert(index < get_object_size(v));
     return (*v.m)[index].v;
 }
 
