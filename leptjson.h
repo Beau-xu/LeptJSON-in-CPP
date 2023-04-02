@@ -12,18 +12,21 @@ using std::vector;
 typedef enum { NONE, FALSE, TRUE, NUMBER, STRING, ARRAY, OBJECT } e_types;
 
 typedef struct value value;
-void freeVal(value &v);
+typedef struct member member;
 
 struct value {
     union {  // 不建议把具有析构函数的数据类型作为union内的成员，如string
-        vector<value>* e;
-        string* s;
-        double n;
+        vector<member>* m; /* object elements */
+        vector<value>* e;  /* array elements */
+        string* s;         /* string elements */
+        double n;          /* number */
     };
     e_types type;
-    // ~value() {
-    //     freeVal(*this);
-    // }
+};
+
+struct member {
+    string k; /* member key string */
+    value v;  /* member value */
 };
 
 enum {
@@ -37,7 +40,10 @@ enum {
     PARSE_INVALID_STRING_CHAR,
     PARSE_INVALID_UNICODE_HEX,
     PARSE_INVALID_UNICODE_SURROGATE,
-    PARSE_MISS_COMMA_OR_SQUARE_BRACKET
+    PARSE_MISS_COMMA_OR_SQUARE_BRACKET,
+    PARSE_MISS_KEY,
+    PARSE_MISS_COLON,
+    PARSE_MISS_COMMA_OR_CURLY_BRACKET
 };
 
 #define init(v)        \
@@ -65,6 +71,12 @@ void set_string(value& v, const string& s);
 
 size_t get_array_size(const value& v);
 value& get_array_element(const value& v, size_t index);
+
+size_t get_object_size(const value& v);
+const string& get_object_key(const value& v, size_t index);
+size_t get_object_key_length(const value& v, size_t index);
+value& get_object_value(const value& v, size_t index);
+
 }  // namespace lept
 
 #endif /* LEPTJSON_H */
