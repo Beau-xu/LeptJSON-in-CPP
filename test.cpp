@@ -44,40 +44,40 @@ static int test_pass = 0;
 #endif
 
 static void test_parse_null() {
-    value v;
-    init(v);
-    v.type = FALSE;
+    LeptValue v;
+    v.freeVal();
+    v.set_type(FALSE);
     EXPECT_EQ_INT(PARSE_OK, parse(v, " null"));
-    EXPECT_EQ_INT(NONE, get_type(v));
-    freeVal(v);
+    EXPECT_EQ_INT(NONE, v.get_type());
+    v.freeVal();
 }
 
 static void test_parse_true() {
-    value v;
-    init(v);
-    v.type = FALSE;
+    LeptValue v;
+    v.freeVal();
+    v.set_type(FALSE);
     EXPECT_EQ_INT(PARSE_OK, parse(v, "true "));
-    EXPECT_EQ_INT(TRUE, get_type(v));
-    freeVal(v);
+    EXPECT_EQ_INT(TRUE, v.get_type());
+    v.freeVal();
 }
 
 static void test_parse_false() {
-    value v;
-    init(v);
-    v.type = TRUE;
+    LeptValue v;
+    v.freeVal();
+    v.set_type(TRUE);
     EXPECT_EQ_INT(PARSE_OK, parse(v, "false"));
-    EXPECT_EQ_INT(FALSE, get_type(v));
-    freeVal(v);
+    EXPECT_EQ_INT(FALSE, v.get_type());
+    v.freeVal();
 }
 
-#define TEST_NUMBER(expect, json)                \
-    do {                                         \
-        value v;                                 \
-        init(v);                                 \
-        EXPECT_EQ_INT(PARSE_OK, parse(v, json)); \
-        EXPECT_EQ_INT(NUMBER, get_type(v));      \
-        EXPECT_EQ_DOUBLE(expect, get_number(v)); \
-        freeVal(v);                              \
+#define TEST_NUMBER(expect, json)                 \
+    do {                                          \
+        LeptValue v;                              \
+        v.freeVal();                              \
+        EXPECT_EQ_INT(PARSE_OK, parse(v, json));  \
+        EXPECT_EQ_INT(NUMBER, v.get_type());      \
+        EXPECT_EQ_DOUBLE(expect, v.get_number()); \
+        v.freeVal();                              \
     } while (0)
 
 static void test_parse_number() {
@@ -107,14 +107,14 @@ static void test_parse_number() {
     TEST_NUMBER(-1.7976931348623157e+308, "-1.7976931348623157e+308");
 }
 
-#define TEST_STRING(expect, json)                                      \
-    do {                                                               \
-        value v;                                                       \
-        init(v);                                                       \
-        EXPECT_EQ_INT(PARSE_OK, parse(v, json));                       \
-        EXPECT_EQ_INT(STRING, get_type(v));                            \
-        EXPECT_EQ_STRING(expect, get_string(v), get_string_length(v)); \
-        freeVal(v);                                                    \
+#define TEST_STRING(expect, json)                                        \
+    do {                                                                 \
+        LeptValue v;                                                     \
+        v.freeVal();                                                     \
+        EXPECT_EQ_INT(PARSE_OK, parse(v, json));                         \
+        EXPECT_EQ_INT(STRING, v.get_type());                             \
+        EXPECT_EQ_STRING(expect, v.get_string(), v.get_string_length()); \
+        v.freeVal();                                                     \
     } while (0)
 
 static void test_parse_string() {
@@ -132,56 +132,56 @@ static void test_parse_string() {
 
 static void test_parse_array() {
     size_t i, j;
-    value v;
+    LeptValue v;
 
-    init(v);
+    v.freeVal();
     EXPECT_EQ_INT(PARSE_OK, parse(v, "[ ]"));
-    EXPECT_EQ_INT(ARRAY, get_type(v));
-    EXPECT_EQ_SIZE_T(0, get_array_size(v));
-    freeVal(v);
+    EXPECT_EQ_INT(ARRAY, v.get_type());
+    EXPECT_EQ_SIZE_T(0, v.get_array_size());
+    v.freeVal();
 
-    init(v);
+    v.freeVal();
     EXPECT_EQ_INT(PARSE_OK, parse(v, "[ null , false , true , 123 , \"abc\" ]"));
-    EXPECT_EQ_INT(ARRAY, get_type(v));
-    EXPECT_EQ_SIZE_T(5, get_array_size(v));
-    EXPECT_EQ_INT(NONE, get_type(get_array_element(v, 0)));
-    EXPECT_EQ_INT(FALSE, get_type(get_array_element(v, 1)));
-    EXPECT_EQ_INT(TRUE, get_type(get_array_element(v, 2)));
-    EXPECT_EQ_INT(NUMBER, get_type(get_array_element(v, 3)));
-    EXPECT_EQ_INT(STRING, get_type(get_array_element(v, 4)));
-    EXPECT_EQ_DOUBLE(123.0, get_number(get_array_element(v, 3)));
-    EXPECT_EQ_STRING("abc", get_string(get_array_element(v, 4)),
-                     get_string_length(get_array_element(v, 4)));
-    freeVal(v);
+    EXPECT_EQ_INT(ARRAY, v.get_type());
+    EXPECT_EQ_SIZE_T(5, v.get_array_size());
+    EXPECT_EQ_INT(NONE, v.get_array_element(0).get_type());
+    EXPECT_EQ_INT(FALSE, v.get_array_element(1).get_type());
+    EXPECT_EQ_INT(TRUE, v.get_array_element(2).get_type());
+    EXPECT_EQ_INT(NUMBER, v.get_array_element(3).get_type());
+    EXPECT_EQ_INT(STRING, v.get_array_element(4).get_type());
+    EXPECT_EQ_DOUBLE(123.0, v.get_array_element(3).get_number());
+    EXPECT_EQ_STRING("abc", v.get_array_element(4).get_string(),
+                     v.get_array_element(4).get_string_length());
+    v.freeVal();
 
-    init(v);
+    v.freeVal();
     EXPECT_EQ_INT(PARSE_OK, parse(v, "[ [ ] , [ 0 ] , [ 0 , 1 ] , [ 0 , 1 , 2 ] ]"));
-    EXPECT_EQ_INT(ARRAY, get_type(v));
-    EXPECT_EQ_SIZE_T(4, get_array_size(v));
+    EXPECT_EQ_INT(ARRAY, v.get_type());
+    EXPECT_EQ_SIZE_T(4, v.get_array_size());
     for (i = 0; i < 4; i++) {
-        value& a = get_array_element(v, i);
-        EXPECT_EQ_INT(ARRAY, get_type(a));
-        EXPECT_EQ_SIZE_T(i, get_array_size(a));
+        LeptValue& a = v.get_array_element(i);
+        EXPECT_EQ_INT(ARRAY, a.get_type());
+        EXPECT_EQ_SIZE_T(i, a.get_array_size());
         for (j = 0; j < i; j++) {
-            value& e = get_array_element(a, j);
-            EXPECT_EQ_INT(NUMBER, get_type(e));
-            EXPECT_EQ_DOUBLE((double)j, get_number(e));
+            LeptValue& e = a.get_array_element(j);
+            EXPECT_EQ_INT(NUMBER, e.get_type());
+            EXPECT_EQ_DOUBLE((double)j, e.get_number());
         }
     }
-    freeVal(v);
+    v.freeVal();
 }
 
 static void test_parse_object() {
-    value v;
+    LeptValue v;
     size_t i;
 
-    init(v);
+    v.freeVal();
     EXPECT_EQ_INT(PARSE_OK, parse(v, " { } "));
-    EXPECT_EQ_INT(OBJECT, get_type(v));
-    EXPECT_EQ_SIZE_T(0, get_object_size(v));
-    freeVal(v);
+    EXPECT_EQ_INT(OBJECT, v.get_type());
+    EXPECT_EQ_SIZE_T(0, v.get_object_size());
+    v.freeVal();
 
-    init(v);
+    v.freeVal();
     EXPECT_EQ_INT(PARSE_OK, parse(v,
                                   " { "
                                   "\"n\" : null , "
@@ -192,52 +192,52 @@ static void test_parse_object() {
                                   "\"a\" : [ 1, 2, 3 ],"
                                   "\"o\" : { \"1\" : 1, \"2\" : 2, \"3\" : 3 }"
                                   " } "));
-    EXPECT_EQ_INT(OBJECT, get_type(v));
-    EXPECT_EQ_SIZE_T(7, get_object_size(v));
-    EXPECT_EQ_STRING("n", get_object_key(v, 0), get_object_key_length(v, 0));
-    EXPECT_EQ_INT(NONE, get_type(get_object_value(v, 0)));
-    EXPECT_EQ_STRING("f", get_object_key(v, 1), get_object_key_length(v, 1));
-    EXPECT_EQ_INT(FALSE, get_type(get_object_value(v, 1)));
-    EXPECT_EQ_STRING("t", get_object_key(v, 2), get_object_key_length(v, 2));
-    EXPECT_EQ_INT(TRUE, get_type(get_object_value(v, 2)));
-    EXPECT_EQ_STRING("i", get_object_key(v, 3), get_object_key_length(v, 3));
-    EXPECT_EQ_INT(NUMBER, get_type(get_object_value(v, 3)));
-    EXPECT_EQ_DOUBLE(123.0, get_number(get_object_value(v, 3)));
-    EXPECT_EQ_STRING("s", get_object_key(v, 4), get_object_key_length(v, 4));
-    EXPECT_EQ_INT(STRING, get_type(get_object_value(v, 4)));
-    EXPECT_EQ_STRING("abc", get_string(get_object_value(v, 4)),
-                     get_string_length(get_object_value(v, 4)));
-    EXPECT_EQ_STRING("a", get_object_key(v, 5), get_object_key_length(v, 5));
-    EXPECT_EQ_INT(ARRAY, get_type(get_object_value(v, 5)));
-    EXPECT_EQ_SIZE_T(3, get_array_size(get_object_value(v, 5)));
+    EXPECT_EQ_INT(OBJECT, v.get_type());
+    EXPECT_EQ_SIZE_T(7, v.get_object_size());
+    EXPECT_EQ_STRING("n", v.get_object_key(0), v.get_object_key_length(0));
+    EXPECT_EQ_INT(NONE, v.get_object_value(0).get_type());
+    EXPECT_EQ_STRING("f", v.get_object_key(1), v.get_object_key_length(1));
+    EXPECT_EQ_INT(FALSE, v.get_object_value(1).get_type());
+    EXPECT_EQ_STRING("t", v.get_object_key(2), v.get_object_key_length(2));
+    EXPECT_EQ_INT(TRUE, v.get_object_value(2).get_type());
+    EXPECT_EQ_STRING("i", v.get_object_key(3), v.get_object_key_length(3));
+    EXPECT_EQ_INT(NUMBER, v.get_object_value(3).get_type());
+    EXPECT_EQ_DOUBLE(123.0, v.get_object_value(3).get_number());
+    EXPECT_EQ_STRING("s", v.get_object_key(4), v.get_object_key_length(4));
+    EXPECT_EQ_INT(STRING, v.get_object_value(4).get_type());
+    EXPECT_EQ_STRING("abc", v.get_object_value(4).get_string(),
+                     v.get_object_value(4).get_string_length());
+    EXPECT_EQ_STRING("a", v.get_object_key(5), v.get_object_key_length(5));
+    EXPECT_EQ_INT(ARRAY, v.get_object_value(5).get_type());
+    EXPECT_EQ_SIZE_T(3, v.get_object_value(5).get_array_size());
     for (i = 0; i < 3; i++) {
-        value& e = get_array_element(get_object_value(v, 5), i);
-        EXPECT_EQ_INT(NUMBER, get_type(e));
-        EXPECT_EQ_DOUBLE(i + 1.0, get_number(e));
+        LeptValue& e = v.get_object_value(5).get_array_element(i);
+        EXPECT_EQ_INT(NUMBER, e.get_type());
+        EXPECT_EQ_DOUBLE(i + 1.0, e.get_number());
     }
-    EXPECT_EQ_STRING("o", get_object_key(v, 6), get_object_key_length(v, 6));
+    EXPECT_EQ_STRING("o", v.get_object_key(6), v.get_object_key_length(6));
     {
-        value& o = get_object_value(v, 6);
-        EXPECT_EQ_INT(OBJECT, get_type(o));
+        LeptValue& o = v.get_object_value(6);
+        EXPECT_EQ_INT(OBJECT, o.get_type());
         for (i = 0; i < 3; i++) {
-            value& ov = get_object_value(o, i);
-            EXPECT_TRUE('1' + i == get_object_key(o, i)[0]);
-            EXPECT_EQ_SIZE_T(1, get_object_key_length(o, i));
-            EXPECT_EQ_INT(NUMBER, get_type(ov));
-            EXPECT_EQ_DOUBLE(i + 1.0, get_number(ov));
+            LeptValue& ov = o.get_object_value(i);
+            EXPECT_TRUE('1' + i == o.get_object_key(i)[0]);
+            EXPECT_EQ_SIZE_T(1, o.get_object_key_length(i));
+            EXPECT_EQ_INT(NUMBER, ov.get_type());
+            EXPECT_EQ_DOUBLE(i + 1.0, ov.get_number());
         }
     }
-    freeVal(v);
+    v.freeVal();
 }
 
 #define TEST_ERROR(error, json)               \
     do {                                      \
-        value v;                              \
-        init(v);                              \
-        v.type = FALSE;                       \
+        LeptValue v;                          \
+        v.freeVal();                          \
+        v.set_type(FALSE);                    \
         EXPECT_EQ_INT(error, parse(v, json)); \
-        EXPECT_EQ_INT(NONE, get_type(v));     \
-        freeVal(v);                           \
+        EXPECT_EQ_INT(NONE, v.get_type());    \
+        v.freeVal();                          \
     } while (0)
 
 static void test_parse_expect_value() {
@@ -372,14 +372,14 @@ static void test_parse() {
 
 #define TEST_ROUNDTRIP(json)                     \
     do {                                         \
-        value v;                                 \
+        LeptValue v;                             \
         string jsonOut;                          \
         size_t length;                           \
-        init(v);                                 \
+        v.freeVal();                             \
         EXPECT_EQ_INT(PARSE_OK, parse(v, json)); \
         jsonOut = stringify(v, &length);         \
         EXPECT_EQ_STRING(json, jsonOut, length); \
-        freeVal(v);                              \
+        v.freeVal();                             \
     } while (0)
 
 static void test_stringify_number() {
@@ -432,42 +432,42 @@ static void test_stringify() {
 }
 
 static void test_access_null() {
-    value v;
-    init(v);
-    set_string(v, "a");
-    set_null(v);
-    EXPECT_EQ_INT(NONE, get_type(v));
-    freeVal(v);
+    LeptValue v;
+    v.freeVal();
+    v.set_string("a");
+    v.freeVal();
+    EXPECT_EQ_INT(NONE, v.get_type());
+    v.freeVal();
 }
 
 static void test_access_boolean() {
-    value v;
-    init(v);
-    set_string(v, "a");
-    set_boolean(v, 1);
-    EXPECT_TRUE(get_boolean(v));
-    set_boolean(v, 0);
-    EXPECT_FALSE(get_boolean(v));
-    freeVal(v);
+    LeptValue v;
+    v.freeVal();
+    v.set_string("a");
+    v.set_boolean(1);
+    EXPECT_TRUE(v.get_boolean());
+    v.set_boolean(0);
+    EXPECT_FALSE(v.get_boolean());
+    v.freeVal();
 }
 
 static void test_access_number() {
-    value v;
-    init(v);
-    set_string(v, "a");
-    set_number(v, 1234.5);
-    EXPECT_EQ_DOUBLE(1234.5, get_number(v));
-    freeVal(v);
+    LeptValue v;
+    v.freeVal();
+    v.set_string("a");
+    v.set_number(1234.5);
+    EXPECT_EQ_DOUBLE(1234.5, v.get_number());
+    v.freeVal();
 }
 
 static void test_access_string() {
-    value v;
-    init(v);
-    set_string(v, string(""));
-    EXPECT_EQ_STRING("", get_string(v), get_string_length(v));
-    set_string(v, string("Hello"));
-    EXPECT_EQ_STRING("Hello", get_string(v), get_string_length(v));
-    freeVal(v);
+    LeptValue v;
+    v.freeVal();
+    v.set_string(string(""));
+    EXPECT_EQ_STRING("", v.get_string(), v.get_string_length());
+    v.set_string(string("Hello"));
+    EXPECT_EQ_STRING("Hello", v.get_string(), v.get_string_length());
+    v.freeVal();
 }
 
 static void test_access() {

@@ -10,11 +10,13 @@ struct value {
     string *s;
 };
 
+string* test(string* ps) {
+    return new string(*ps);
+}
+
 int main() {
     string s = string("hello");
-    s.pop_back();
-    cout << s << endl;
-
-
+    string* ps = nullptr;
+    cout << ps << '\n' << *ps;
     return 0;
 }
