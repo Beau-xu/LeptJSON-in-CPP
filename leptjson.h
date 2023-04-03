@@ -1,9 +1,10 @@
 #ifndef LEPTJSON_H
 #define LEPTJSON_H
 
+#include <assert.h>
+
 #include <string>
 #include <vector>
-#include <assert.h>
 
 namespace lept {
 
@@ -43,6 +44,8 @@ class LeptValue {
    public:
     LeptValue() : type(NONE) {}
     void freeVal();
+    e_types get_type() const;
+    void set_type(e_types t);
     bool get_boolean() const;
     void set_boolean(bool b);
     double get_number() const;
@@ -53,37 +56,33 @@ class LeptValue {
     void set_string(const string* s);
     void set_array(const vector<LeptValue>* arr);
     size_t get_array_size() const;
-    // size_t get_array_capacity() const ;
-    // void reserve_array(size_t capacity);
-    // void shrink_array();
-    // void clear_array();
+    size_t get_array_capacity() const;
+    void shrink_array();
+    void clear_array();
     LeptValue& get_array_element(size_t index) const;
-    // LeptValue& pushback_array_element();
-    // void popback_array_element();
-    // LeptValue& insert_array_element(size_t index);
-    // void erase_array_element(size_t index, size_t count);
+    void pushback_array_element(const LeptValue& v);
+    void popback_array_element();
+    void insert_array_element(const LeptValue& v, size_t index);
+    void erase_array_element(size_t index, size_t count);
     void set_object(vector<member>* obj);
     size_t get_object_size() const;
-    // size_t get_object_capacity() const;
-    // void reserve_object(size_t capacity);
-    // void shrink_object();
-    // void clear_object();
     const string& get_object_key(size_t index) const;
     size_t get_object_key_length(size_t index) const;
     LeptValue& get_object_value(size_t index) const;
-    // size_t find_object_index(const string& key);
-    // LeptValue* find_object_LeptValue(const string& key);
-    // LeptValue& set_object_LeptValue(const string& key);
-    // void remove_object_LeptValue(size_t index);
+    size_t get_object_index(const string& key) const;
+    LeptValue* get_object_value(const string& key) const;
+    void pushback_object_member(const string& key, const LeptValue& v);
+    void remove_object_member(size_t index);
+    size_t get_object_capacity() const;
+    void shrink_object();
+    void clear_object();
     // void copy(LeptValue& dst, const LeptValue& src);
     // void move(LeptValue& dst, LeptValue& src);
     // void swap(LeptValue& lhs, LeptValue& rhs);
-    e_types get_type() const;
-    void set_type(e_types t);
     // bool is_equal(const LeptValue& lhs, const LeptValue& rhs);
 
    private:
-    union {  // 不建议把具有析构函数的数据类型作为union内的成员，如string
+    union {
         vector<member>* m;    /* object elements */
         vector<LeptValue>* e; /* array elements */
         string* s;            /* string elements */
@@ -93,6 +92,8 @@ class LeptValue {
 };
 
 struct member {
+    member() = default;
+    member(const string& key, const LeptValue val) : k(key), v(val) {}
     string k;    /* member key string */
     LeptValue v; /* member LeptValue */
 };
@@ -190,6 +191,53 @@ inline size_t LeptValue::get_array_size() const {
     return this->e->size();
 }
 
+inline size_t LeptValue::get_array_capacity() const {
+    assert(this->type == ARRAY);
+    return (*this->e).capacity();
+}
+
+inline void LeptValue::shrink_array() {
+    assert(this->type == ARRAY);
+    (*this->e).shrink_to_fit();
+}
+
+inline void LeptValue::clear_array() {
+    assert(this->type == ARRAY);
+    (*this->e).clear();
+}
+
+inline LeptValue& LeptValue::get_array_element(size_t index) const {
+    assert(this->type == ARRAY);
+    assert(index < this->get_array_size());
+    return (*this->e)[index];
+}
+
+inline void LeptValue::pushback_array_element(const LeptValue& v) {
+    assert(this->type == ARRAY);
+    (*this->e).push_back(v);
+}
+
+inline void LeptValue::popback_array_element() {
+    assert(this->type == ARRAY);
+    (*this->e).pop_back();
+}
+
+inline void LeptValue::insert_array_element(const LeptValue& v, size_t index) {
+    assert(this->type == ARRAY && index <= (*this->e).size());
+    auto it = (*this->e).begin() + index;
+    (*this->e).insert(it, v);
+}
+
+inline void LeptValue::erase_array_element(size_t _start, size_t _count) {
+    assert(this->type == ARRAY && _start + _count <= (*this->e).size());
+    size_t num = 0;
+    auto it = (*this->e).begin() + _start;
+    while (num < _count) {
+        it = (*this->e).erase(it);
+        ++num;
+    }
+}
+
 inline void LeptValue::set_object(vector<member>* obj) {
     this->freeVal();
     if (obj == nullptr)
@@ -197,12 +245,6 @@ inline void LeptValue::set_object(vector<member>* obj) {
     else
         this->m = new vector<member>(*obj);
     this->type = OBJECT;
-}
-
-inline LeptValue& LeptValue::get_array_element(size_t index) const {
-    assert(this->type == ARRAY);
-    assert(index < this->get_array_size());
-    return (*this->e)[index];
 }
 
 inline size_t LeptValue::get_object_size() const {
@@ -227,6 +269,48 @@ inline LeptValue& LeptValue::get_object_value(size_t index) const {
     assert(this->type == OBJECT);
     assert(index < this->get_object_size());
     return (*this->m)[index].v;
+}
+
+inline size_t LeptValue::get_object_index(const std::string& key) const {
+    assert(this->type == OBJECT);
+    size_t i = 0;
+    for (const member& mem : *this->m) {
+        if (mem.k == key) return i;
+        ++i;
+    }
+    return KEY_NOT_EXIST;
+}
+
+inline LeptValue* LeptValue::get_object_value(const string& key) const {
+    assert(this->type == OBJECT);
+    size_t i = 0;
+    i = this->get_object_index(key);
+    return i != KEY_NOT_EXIST ? &((*this->m)[i].v) : nullptr;
+}
+
+inline void LeptValue::pushback_object_member(const string& key, const LeptValue& v) {
+    assert(this->type == OBJECT);
+    (*this->m).push_back(member(key, v));
+}
+
+inline void LeptValue::remove_object_member(size_t index) {
+    assert(this->type == OBJECT && index < (*this->m).size());
+    (*this->m).erase((*this->m).begin() + index);
+}
+
+inline size_t LeptValue::get_object_capacity() const {
+    assert(this->type == OBJECT);
+    return (*this->m).capacity();
+}
+
+inline void LeptValue::shrink_object() {
+    assert(this->type == OBJECT);
+    (*this->m).shrink_to_fit();
+}
+
+inline void LeptValue::clear_object() {
+    assert(this->type == OBJECT);
+    (*this->m).clear();
 }
 
 }  // namespace lept
