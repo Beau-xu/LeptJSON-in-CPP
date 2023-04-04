@@ -484,6 +484,6 @@ int main() {
     lept::test_stringify();
     lept::test_access();
     std::cout << lept::test_pass << '/' << lept::test_count << " (" << std::setprecision(5)
-              << lept::test_pass * 100.0 / lept::test_count << "%) passed\n";
+              << lept::test_pass * 100.0 / lept::test_count << "%) passed\n" << std::endl;
     return lept::main_ret;
 }
