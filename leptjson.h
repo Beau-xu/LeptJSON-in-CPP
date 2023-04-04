@@ -15,7 +15,7 @@ using std::vector;
 
 class LeptValue;
 
-typedef struct member member;
+typedef struct Member Member;
 
 int parse(LeptValue& v, const string& strJson);
 
@@ -43,7 +43,11 @@ enum {
 class LeptValue {
    public:
     LeptValue() : type(NONE) {}
+    LeptValue(const LeptValue& v);
+    ~LeptValue();
+    LeptValue& operator=(const LeptValue&);
     void freeVal();
+    void release();
     e_types get_type() const;
     void set_type(e_types t);
     bool get_boolean() const;
@@ -64,7 +68,7 @@ class LeptValue {
     void popback_array_element();
     void insert_array_element(const LeptValue& v, size_t index);
     void erase_array_element(size_t index, size_t count);
-    void set_object(vector<member>* obj);
+    void set_object(vector<Member>* obj);
     size_t get_object_size() const;
     const string& get_object_key(size_t index) const;
     size_t get_object_key_length(size_t index) const;
@@ -83,7 +87,7 @@ class LeptValue {
 
    private:
     union {
-        vector<member>* o;    /* object elements */
+        vector<Member>* o;    /* object elements */
         vector<LeptValue>* a; /* array elements */
         string* s;            /* string elements */
         double n;             /* number */
@@ -91,12 +95,29 @@ class LeptValue {
     e_types type;
 };
 
-struct member {
-    member() = default;
-    member(const string& key, const LeptValue val) : k(key), v(val) {}
-    string k;    /* member key string */
-    LeptValue v; /* member LeptValue */
+struct Member {
+    Member() = default;
+    Member(const string& key, const LeptValue val) : k(key), v(val) {}
+    string k;    /* Member key string */
+    LeptValue v; /* Member LeptValue */
 };
+
+inline LeptValue::LeptValue(const LeptValue& v) { *this = v; }
+
+inline LeptValue::~LeptValue() { this->freeVal(); }
+
+inline LeptValue& LeptValue::operator=(const LeptValue& rhs) {
+    this->freeVal();
+    switch (rhs.type) {
+        case NUMBER: this->n = rhs.n; break;
+        case STRING: this->s = rhs.s != nullptr ? new string(*rhs.s) : nullptr; break;
+        case ARRAY: this->a = rhs.a != nullptr ? new vector<LeptValue>(*rhs.a) : nullptr; break;
+        case OBJECT: this->o = rhs.o != nullptr ? new vector<Member>(*rhs.o) : nullptr; break;
+        default: break;
+    }
+    this->type = rhs.type;
+    return *this;
+}
 
 inline void LeptValue::freeVal() {
     switch (this->type) {
@@ -115,12 +136,22 @@ inline void LeptValue::freeVal() {
             break;
         case OBJECT:
             if (this->o != nullptr) {
-                for (member& mem : *this->o) {
+                for (Member& mem : *this->o) {
                     mem.v.freeVal();
                 }
                 this->o = nullptr;
             }
             break;
+        default: break;
+    }
+    this->type = NONE;
+}
+
+inline void LeptValue::release() {
+    switch (this->type) {
+        case STRING: this->s = nullptr; break;
+        case ARRAY: this->a = nullptr; break;
+        case OBJECT: this->o = nullptr; break;
         default: break;
     }
     this->type = NONE;
@@ -238,12 +269,12 @@ inline void LeptValue::erase_array_element(size_t _start, size_t _count) {
     }
 }
 
-inline void LeptValue::set_object(vector<member>* obj) {
+inline void LeptValue::set_object(vector<Member>* obj) {
     this->freeVal();
     if (obj == nullptr)
         this->o = nullptr;
     else
-        this->o = new vector<member>(*obj);
+        this->o = new vector<Member>(*obj);
     this->type = OBJECT;
 }
 
@@ -274,7 +305,7 @@ inline LeptValue& LeptValue::get_object_value(size_t index) const {
 inline size_t LeptValue::get_object_index(const std::string& key) const {
     assert(this->type == OBJECT);
     size_t i = 0;
-    for (const member& mem : *this->o) {
+    for (const Member& mem : *this->o) {
         if (mem.k == key) return i;
         ++i;
     }
@@ -290,7 +321,7 @@ inline LeptValue* LeptValue::get_object_value(const string& key) const {
 
 inline void LeptValue::pushback_object_member(const string& key, const LeptValue& v) {
     assert(this->type == OBJECT);
-    (*this->o).push_back(member(key, v));
+    (*this->o).push_back(Member(key, v));
 }
 
 inline void LeptValue::remove_object_member(size_t index) {

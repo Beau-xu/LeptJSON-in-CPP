@@ -37,7 +37,7 @@ static int test_pass = 0;
 
 #if defined(_MSC_VER)
 #define EXPECT_EQ_SIZE_T(expect, actual) \
-    EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, "%Iu")
+    EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, 0)
 #else
 #define EXPECT_EQ_SIZE_T(expect, actual) \
     EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, 0)

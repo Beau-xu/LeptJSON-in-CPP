@@ -185,7 +185,6 @@ static int parse_array(context& c, LeptValue& v) {
             break;
         }
     }
-    for (auto val : vecVal) val.freeVal();
     return ret;
 }
 
@@ -198,9 +197,9 @@ static int parse_object(context& c, LeptValue& v) {
         return PARSE_OK;
     }
     int ret;
-    vector<member> vecMem;
+    vector<Member> vecMem;
     while (true) {
-        member mem;
+        Member mem;
         mem.k = string("");
         if (*c.json != '\"') {
             ret = PARSE_MISS_KEY;
@@ -228,7 +227,6 @@ static int parse_object(context& c, LeptValue& v) {
             break;
         }
     }
-    for (auto mem : vecMem) mem.v.freeVal();
     return ret;
 }
 
