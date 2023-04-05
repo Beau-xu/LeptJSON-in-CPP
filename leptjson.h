@@ -129,16 +129,17 @@ inline void LeptValue::freeVal() {
             break;
         case ARRAY:
             if (this->a != nullptr) {
-                for (LeptValue& val : *this->a) val.freeVal();
+                // for (LeptValue& val : *this->a) val.freeVal();
                 delete this->a;
                 this->a = nullptr;
             }
             break;
         case OBJECT:
             if (this->o != nullptr) {
-                for (Member& mem : *this->o) {
-                    mem.v.freeVal();
-                }
+                // for (Member& mem : *this->o) {
+                //     mem.v.freeVal();
+                // }
+                delete this->o;
                 this->o = nullptr;
             }
             break;
