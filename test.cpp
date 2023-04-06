@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 
-#include "leptjson.h"
+#include "leptjson/leptjson.h"
 
 namespace lept {
 using std::cerr;
