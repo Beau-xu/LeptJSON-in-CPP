@@ -151,7 +151,7 @@ static int parse_string_raw(context& c, string& s) {
 static int parse_string(context& c, LeptValue& v) {
     int ret;
     string s("");
-    if ((ret = parse_string_raw(c, s)) == PARSE_OK) v.set_string(&s);
+    if ((ret = parse_string_raw(c, s)) == PARSE_OK) v.set_string(s);
     return ret;
 }
 
@@ -162,7 +162,7 @@ static int parse_array(context& c, LeptValue& v) {
     parse_whitespace(c);
     if (*c.json == ']') {
         c.json++;
-        v.set_array(nullptr);
+        v.init_array();
         return PARSE_OK;
     }
     int ret;
@@ -177,7 +177,7 @@ static int parse_array(context& c, LeptValue& v) {
             parse_whitespace(c);
         } else if (*c.json == ']') {
             c.json++;
-            v.set_array(&vecVal);
+            v.set_array(vecVal);
             return PARSE_OK;  // 直接返回且不释放 vecVal
             break;
         } else {
@@ -193,7 +193,7 @@ static int parse_object(context& c, LeptValue& v) {
     parse_whitespace(c);
     if (*c.json == '}') {
         c.json++;
-        v.set_object(nullptr);
+        v.init_object();
         return PARSE_OK;
     }
     int ret;
@@ -220,7 +220,7 @@ static int parse_object(context& c, LeptValue& v) {
             parse_whitespace(c);
         } else if (*c.json == '}') {
             c.json++;
-            v.set_object(&vecMem);
+            v.set_object(vecMem);
             return PARSE_OK;
         } else {
             ret = PARSE_MISS_COMMA_OR_CURLY_BRACKET;

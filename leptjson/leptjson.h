@@ -54,25 +54,30 @@ class LeptValue {
     void set_boolean(bool b);
     double get_number() const;
     void set_number(double n);
-    string& get_string() const;
+    const string& get_string() const;
+    string& get_string();
     size_t get_string_length() const;
-    void set_string(const string s);
-    void set_string(const string* s);
-    void set_array(const vector<LeptValue>* arr);
+    void init_string();
+    void set_string(const string& s);
+    void init_array();
+    void set_array(const vector<LeptValue>& arr);
     size_t get_array_size() const;
     size_t get_array_capacity() const;
     void shrink_array();
     void clear_array();
-    LeptValue& get_array_element(size_t index) const;
+    const LeptValue& get_array_element(size_t index) const;
+    LeptValue& get_array_element(size_t index);
     void pushback_array_element(const LeptValue& v);
     void popback_array_element();
     void insert_array_element(const LeptValue& v, size_t index);
     void erase_array_element(size_t index, size_t count);
-    void set_object(vector<Member>* obj);
+    void init_object();
+    void set_object(const vector<Member>& obj);
     size_t get_object_size() const;
     const string& get_object_key(size_t index) const;
     size_t get_object_key_length(size_t index) const;
-    LeptValue& get_object_value(size_t index) const;
+    const LeptValue& get_object_value(size_t index) const;
+    LeptValue& get_object_value(size_t index);
     size_t get_object_index(const string& key) const;
     LeptValue* get_object_value(const string& key) const;
     void pushback_object_member(const string& key, const LeptValue& v);
@@ -80,17 +85,15 @@ class LeptValue {
     size_t get_object_capacity() const;
     void shrink_object();
     void clear_object();
-    // void copy(LeptValue& dst, const LeptValue& src);
     // void move(LeptValue& dst, LeptValue& src);
     // void swap(LeptValue& lhs, LeptValue& rhs);
-    // bool is_equal(const LeptValue& lhs, const LeptValue& rhs);
 
    private:
     union {
-        vector<Member>* o;    /* object elements */
-        vector<LeptValue>* a; /* array elements */
-        string* s;            /* string elements */
-        double n;             /* number */
+        vector<Member> o;    /* object elements */
+        vector<LeptValue> a; /* array elements */
+        string s;            /* string elements */
+        double n;            /* number */
     };
     e_types type;
 };
@@ -107,12 +110,22 @@ inline LeptValue::LeptValue(const LeptValue& v) { *this = v; }
 inline LeptValue::~LeptValue() { this->freeVal(); }
 
 inline LeptValue& LeptValue::operator=(const LeptValue& rhs) {
+    if (this->type == rhs.type) {
+        switch (rhs.type) {
+            case NUMBER: this->n = rhs.n; break;
+            case STRING: this->s = rhs.s; break;
+            case ARRAY: this->a = rhs.a; break;
+            case OBJECT: this->o = rhs.o; break;
+            default: break;
+        }
+        return *this;
+    }
     this->freeVal();
     switch (rhs.type) {
         case NUMBER: this->n = rhs.n; break;
-        case STRING: this->s = rhs.s != nullptr ? new string(*rhs.s) : nullptr; break;
-        case ARRAY: this->a = rhs.a != nullptr ? new vector<LeptValue>(*rhs.a) : nullptr; break;
-        case OBJECT: this->o = rhs.o != nullptr ? new vector<Member>(*rhs.o) : nullptr; break;
+        case STRING: this->set_string(rhs.s); break;
+        case ARRAY: this->set_array(rhs.a); break;
+        case OBJECT: this->set_object(rhs.o); break;
         default: break;
     }
     this->type = rhs.type;
@@ -121,38 +134,9 @@ inline LeptValue& LeptValue::operator=(const LeptValue& rhs) {
 
 inline void LeptValue::freeVal() {
     switch (this->type) {
-        case STRING:
-            if (this->s != nullptr) {
-                delete this->s;
-                this->s = nullptr;
-            }
-            break;
-        case ARRAY:
-            if (this->a != nullptr) {
-                // for (LeptValue& val : *this->a) val.freeVal();
-                delete this->a;
-                this->a = nullptr;
-            }
-            break;
-        case OBJECT:
-            if (this->o != nullptr) {
-                // for (Member& mem : *this->o) {
-                //     mem.v.freeVal();
-                // }
-                delete this->o;
-                this->o = nullptr;
-            }
-            break;
-        default: break;
-    }
-    this->type = NONE;
-}
-
-inline void LeptValue::release() {
-    switch (this->type) {
-        case STRING: this->s = nullptr; break;
-        case ARRAY: this->a = nullptr; break;
-        case OBJECT: this->o = nullptr; break;
+        case STRING: this->s.~string(); break;
+        case ARRAY: this->a.~vector(); break;
+        case OBJECT: this->o.~vector(); break;
         default: break;
     }
     this->type = NONE;
@@ -183,166 +167,201 @@ inline void LeptValue::set_number(double n) {
     this->type = NUMBER;
 }
 
-inline string& LeptValue::get_string() const {
+inline const string& LeptValue::get_string() const {
     assert(this->type == STRING);
-    return *this->s;
+    return this->s;
+}
+
+inline string& LeptValue::get_string() {
+    assert(this->type == STRING);
+    return this->s;
 }
 
 inline size_t LeptValue::get_string_length() const {
     assert(this->type == STRING);
-    return this->s->size();
+    return this->s.size();
 }
 
-inline void LeptValue::set_string(const string s) {
+inline void LeptValue::init_string() {
+    if (this->type == STRING) {
+        this->s = "";
+        return;
+    }
     this->freeVal();
-    this->s = new string(s);
+    new (&this->s) string("");
     this->type = STRING;
 }
 
-inline void LeptValue::set_string(const string* s) {
+inline void LeptValue::set_string(const string& str) {
+    if (this->type == STRING) {
+        this->s = str;
+        return;
+    }
     this->freeVal();
-    if (s == nullptr)
-        this->s = nullptr;
-    else
-        this->s = new string(*s);
+    new (&this->s) string(str);
     this->type = STRING;
 }
 
-inline void LeptValue::set_array(const vector<LeptValue>* arr) {
+inline void LeptValue::init_array() {
+    if (this->type == ARRAY) {
+        this->a = vector<LeptValue>();
+        return;
+    }
     this->freeVal();
-    if (arr == nullptr)
-        this->a = nullptr;
-    else
-        this->a = new vector<LeptValue>(*arr);
+    new (&this->a) vector<LeptValue>();
+    this->type = ARRAY;
+}
+
+inline void LeptValue::set_array(const vector<LeptValue>& arr) {
+    if (this->type == ARRAY) {
+        this->a = vector<LeptValue>();
+        return;
+    }
+    this->freeVal();
+    new (&this->a) vector<LeptValue>(arr);
     this->type = ARRAY;
 }
 
 inline size_t LeptValue::get_array_size() const {
     assert(this->type == ARRAY);
-    if (this->a == nullptr) return 0;
-    return this->a->size();
+    return this->a.size();
 }
 
 inline size_t LeptValue::get_array_capacity() const {
     assert(this->type == ARRAY);
-    return (*this->a).capacity();
+    return (this->a).capacity();
 }
 
 inline void LeptValue::shrink_array() {
     assert(this->type == ARRAY);
-    (*this->a).shrink_to_fit();
+    (this->a).shrink_to_fit();
 }
 
 inline void LeptValue::clear_array() {
     assert(this->type == ARRAY);
-    (*this->a).clear();
+    (this->a).clear();
 }
 
-inline LeptValue& LeptValue::get_array_element(size_t index) const {
+inline const LeptValue& LeptValue::get_array_element(size_t index) const {
     assert(this->type == ARRAY);
     assert(index < this->get_array_size());
-    return (*this->a)[index];
+    return this->a[index];
+}
+
+inline LeptValue& LeptValue::get_array_element(size_t index) {
+    assert(this->type == ARRAY);
+    assert(index < this->get_array_size());
+    return this->a[index];
 }
 
 inline void LeptValue::pushback_array_element(const LeptValue& v) {
     assert(this->type == ARRAY);
-    (*this->a).push_back(v);
+    (this->a).push_back(v);
 }
 
 inline void LeptValue::popback_array_element() {
     assert(this->type == ARRAY);
-    (*this->a).pop_back();
+    (this->a).pop_back();
 }
 
 inline void LeptValue::insert_array_element(const LeptValue& v, size_t index) {
-    assert(this->type == ARRAY && index <= (*this->a).size());
-    auto it = (*this->a).begin() + index;
-    (*this->a).insert(it, v);
+    assert(this->type == ARRAY && index <= (this->a).size());
+    auto it = (this->a).begin() + index;
+    (this->a).insert(it, v);
 }
 
 inline void LeptValue::erase_array_element(size_t _start, size_t _count) {
-    assert(this->type == ARRAY && _start + _count <= (*this->a).size());
+    assert(this->type == ARRAY && _start + _count <= (this->a).size());
     size_t num = 0;
-    auto it = (*this->a).begin() + _start;
+    auto it = (this->a).begin() + _start;
     while (num < _count) {
-        it = (*this->a).erase(it);
+        it = (this->a).erase(it);
         ++num;
     }
 }
 
-inline void LeptValue::set_object(vector<Member>* obj) {
+inline void LeptValue::init_object() {
+    if (this->type == OBJECT) {
+        this->o = vector<Member>();
+        return;
+    }
     this->freeVal();
-    if (obj == nullptr)
-        this->o = nullptr;
-    else
-        this->o = new vector<Member>(*obj);
+    new (&this->o) vector<Member>();
+    this->type = OBJECT;
+}
+
+inline void LeptValue::set_object(const vector<Member>& obj) {
+    if (this->type == OBJECT) {
+        this->o = vector<Member>();
+        return;
+    }
+    this->freeVal();
+    new (&this->o) vector<Member>(obj);
     this->type = OBJECT;
 }
 
 inline size_t LeptValue::get_object_size() const {
     assert(this->type == OBJECT);
-    if (this->o == nullptr) return 0;
-    return this->o->size();
+    return this->o.size();
 }
 
 inline const string& LeptValue::get_object_key(size_t index) const {
     assert(this->type == OBJECT);
     assert(index < this->get_object_size());
-    return (*this->o)[index].k;
+    return (this->o)[index].k;
 }
 
 inline size_t LeptValue::get_object_key_length(size_t index) const {
     assert(this->type == OBJECT);
     assert(index < this->get_object_size());
-    return (*this->o)[index].k.size();
+    return (this->o)[index].k.size();
 }
 
-inline LeptValue& LeptValue::get_object_value(size_t index) const {
+inline const LeptValue& LeptValue::get_object_value(size_t index) const {
     assert(this->type == OBJECT);
     assert(index < this->get_object_size());
-    return (*this->o)[index].v;
+    return this->o[index].v;
+}
+
+inline LeptValue& LeptValue::get_object_value(size_t index) {
+    assert(this->type == OBJECT);
+    assert(index < this->get_object_size());
+    return this->o[index].v;
 }
 
 inline size_t LeptValue::get_object_index(const std::string& key) const {
     assert(this->type == OBJECT);
     size_t i = 0;
-    for (const Member& mem : *this->o) {
+    for (const Member& mem : this->o) {
         if (mem.k == key) return i;
         ++i;
     }
     return KEY_NOT_EXIST;
 }
 
-inline LeptValue* LeptValue::get_object_value(const string& key) const {
-    assert(this->type == OBJECT);
-    size_t i = 0;
-    i = this->get_object_index(key);
-    return i != KEY_NOT_EXIST ? &((*this->o)[i].v) : nullptr;
-}
-
 inline void LeptValue::pushback_object_member(const string& key, const LeptValue& v) {
     assert(this->type == OBJECT);
-    (*this->o).push_back(Member(key, v));
+    (this->o).push_back(Member(key, v));
 }
 
 inline void LeptValue::remove_object_member(size_t index) {
-    assert(this->type == OBJECT && index < (*this->o).size());
-    (*this->o).erase((*this->o).begin() + index);
+    assert(this->type == OBJECT && index < (this->o).size());
+    (this->o).erase((this->o).begin() + index);
 }
 
 inline size_t LeptValue::get_object_capacity() const {
     assert(this->type == OBJECT);
-    return (*this->o).capacity();
+    return (this->o).capacity();
 }
 
 inline void LeptValue::shrink_object() {
     assert(this->type == OBJECT);
-    (*this->o).shrink_to_fit();
+    (this->o).shrink_to_fit();
 }
 
 inline void LeptValue::clear_object() {
     assert(this->type == OBJECT);
-    (*this->o).clear();
+    (this->o).clear();
 }
 
 }  // namespace lept
