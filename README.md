@@ -10,4 +10,4 @@
 - 通过 C++ vector 容器管理 JSON 的数组和对象，实现内存自动管理。
 
 优化：
-- 将 union 指针成员（指向类对象的指针`string*`、`vector<T>*`）替换为类对象本身。原代码保存在[指针分支](https://github.com/Beau-xu/LeptJSON-in-CPP/tree/class-pointer-in-union)
+- 将 union 指针成员（指向类对象的指针`string*`、`vector<T>*`）替换为类对象本身。原代码保存在[指针分支](https://github.com/Beau-xu/LeptJSON-in-CPP/tree/class-pointer-in-union)。
